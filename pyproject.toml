@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">=3.13"
+name = "odout"
+version = "0.0.1"
+description = "Quack server for the MBTA Fare Data Repository DuckDB catalog"
+
+dependencies = [
+    "duckdb==1.5.5",
+]
+optional-dependencies.dev = [
+    "mypy",
+    "pytest",
+    "ruff",
+]
+
+[project.scripts]
+start-odout = "odout.server:main"
+
+[tool.pip-tools]
+generate-hashes = true
+
+[tool.mypy]
+ignore_missing_imports = true
+python_version = 3.13
+exclude = ["prototype_example/"]
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+target-version = "py313"
+exclude = [
+    ".egg-info",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "prototype_example",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = ["D","E","F","N","W"]
+ignore = [
+    "D100", # Missing docstring in public module
+    "D203", # conflicts with (D211) `no-blank-line-before-class`
+    "D212", # conflicts with (D213) `multi-line-summary-second-line`
+    "D400", # First line should end with a period
+    "D415", # First line should end with a period, question mark, or exclamation point
+    "D413", # conflicts with (D412)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D103"]

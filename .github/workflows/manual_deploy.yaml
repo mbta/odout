@@ -1,0 +1,19 @@
+name: Manual Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options:
+          - dev
+
+jobs:
+  deploy:
+    concurrency:
+      group: ${{ github.event.inputs.environment }}
+    uses: ./.github/workflows/deploy_base.yaml
+    with:
+      environment: ${{ github.event.inputs.environment }}
+    secrets: inherit

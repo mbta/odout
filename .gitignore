@@ -1,0 +1,14 @@
+# local prototype and credentials are never committed
+prototype_example/
+*.env
+.env
+
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.DS_Store

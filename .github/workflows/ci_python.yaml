@@ -1,0 +1,85 @@
+name: Continuous Integration (Python)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'docker/**'
+      - 'Dockerfile'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '**/requirements*.txt'
+      - '.github/workflows/ci_python.yaml'
+      - '.github/actions/python_deps/action.yaml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'docker/**'
+      - 'Dockerfile'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '**/requirements*.txt'
+      - '.github/workflows/ci_python.yaml'
+      - '.github/actions/python_deps/action.yaml'
+
+defaults:
+  run:
+    shell: bash
+    working-directory: .
+
+concurrency:
+  group: python-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Python Setup
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+
+  format:
+    name: Format
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+      - run: ruff format --diff .
+
+  typing:
+    name: Type Check
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+      - run: mypy .
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+      - run: ruff check --diff .
+
+  test:
+    name: Test
+    runs-on: ubuntu-22.04
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/python_deps
+      - run: pytest tests
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - run: docker build --build-arg VERSION=ci-${{ github.sha }} .

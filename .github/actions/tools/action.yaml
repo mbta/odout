@@ -1,0 +1,29 @@
+name: Setup ASDF Tools
+description: Loads ASDF tools for for a CI/CD job, installing them if not cached
+outputs:
+  cache-hit:
+    description: "Whether the ASDF cache was hit"
+    value: ${{ steps.asdf-cache.outputs-cache-hit }}
+runs:
+  using: composite
+  steps:
+    # cache the ASDF directory, using values from .tool-versions
+    - name: ASDF Tools Cache
+      uses: actions/cache@v4
+      id: asdf-cache
+      with:
+        path: ~/.asdf
+        # runner.os vs CACHE_UUID secret
+        key: ${{ runner.os}}-asdf-${{ hashFiles('**/.tool-versions') }}
+
+    - name: Install ASDF Tools
+      uses: asdf-vm/actions/install@v3
+      if: steps.asdf-cache.outputs.cache-hit != 'true'
+      with:
+        # asdf master removed the Bash implementation (bin/asdf) that v3 of
+        # this action and mbta/actions/reshim-asdf rely on; pin to the last
+        # Bash release.
+        asdf_branch: v0.15.0
+
+    - name: Re-shim ASDF Install
+      uses: mbta/actions/reshim-asdf@v1
