@@ -30,6 +30,6 @@ with duckdb.connect(config={"extension_directory": EXTENSION_DIRECTORY}) as db:
     print(
         db.execute(
             "SELECT extension_name, extension_version FROM duckdb_extensions() "
-            "WHERE extension_name IN ('quack', 'httpfs', 'aws')"
+            "WHERE extension_name IN ('quack', 'httpfs', 'aws', 'delta')"
         ).fetchall()
     )
