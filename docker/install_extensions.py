@@ -17,6 +17,7 @@ PINS = {
     "quack": "aa0155c452a882eb8912d59589626a5156ab92a8e80952371b78e26e1cf07168",
     "httpfs": "887c392b1e49128d11667c81e3698d8b00dfdeb456771acf66d05a0f74f7b7d8",
     "aws": "1bbf923fb64efd33a6ae69fb96d74cbd474fd003cfd3d5127c06f9a9a6901156",
+    "delta": "24b10f221b799a82f2aec588102702540fb79b34ba4be7f47328333a02fd4e1e",
 }
 
 with duckdb.connect(config={"extension_directory": EXTENSION_DIRECTORY}) as db:
