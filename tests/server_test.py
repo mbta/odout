@@ -145,7 +145,7 @@ def quack_server(tmp_path):
         port = sock.getsockname()[1]
     endpoint = f"quack:127.0.0.1:{port}"
     with duckdb.connect() as server:
-        server.execute("LOAD quack; LOAD httpfs")
+        server.execute("INSTALL quack; INSTALL httpfs; LOAD quack; LOAD httpfs")
         # stands in for create_s3_secret: the secret manager must exist before lock_down
         server.execute("CREATE SECRET s (TYPE s3, KEY_ID 'k', SECRET 's')")
         pin_quack_callbacks(server)
