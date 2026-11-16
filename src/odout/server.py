@@ -10,8 +10,10 @@ EXTENSION_DIRECTORY = "/opt/duckdb/extensions"
 # spill to the task's ephemeral storage; memory_limit keeps DuckDB's default of 80% of task memory
 TEMP_DIRECTORY = "/home/quack/duckdb_tmp"
 CATALOG_ALIAS = "fares_data_repository"
+# Odin's data prefix (odin.utils.locations.ODIN_DATA); every catalog view reads beneath it
+ODIN_DATA = "odin/data"
 # where Odin's data dictionary job writes the catalog file (odin.utils.locations.ODIN_DICTIONARY)
-ODIN_DICTIONARY = "odin/data/dictionary"
+ODIN_DICTIONARY = f"{ODIN_DATA}/dictionary"
 DB_FILE = "fares_data_repository.db"
 QUACK_ENDPOINT = "quack:0.0.0.0:9494"
 DEFAULT_REFRESH_SECONDS = 300
@@ -33,6 +35,42 @@ def catalog_uri(springboard: str, aws_env: str) -> str:
     if aws_env.lower() != "prod":
         db_file = db_file.replace(".db", f"_{aws_env}.db")
     return f"s3://{springboard}/{ODIN_DICTIONARY}/{db_file}"
+
+
+def data_prefix(springboard: str) -> str:
+    """S3 prefix holding the catalog file and all the data its views read."""
+    return f"s3://{springboard}/{ODIN_DATA}/"
+
+
+def pin_quack_callbacks(db: duckdb.DuckDBPyConnection) -> None:
+    """
+    Point Quack's auth callbacks at the built-ins by fully qualified name.
+
+    The default settings name the callbacks unqualified, so a client holding the token could
+    `CREATE MACRO quack_check_token(...) AS true` and shadow the built-in, opening the server
+    to every token. Configuration locking does not prevent that; qualifying the names does.
+    """
+    db.execute("SET quack_authentication_function = 'system.main.quack_check_token'")
+    db.execute("SET quack_authorization_function = 'system.main.quack_nop_authorization'")
+
+
+def lock_down(db: duckdb.DuckDBPyConnection, allowed_prefix: str) -> None:
+    """
+    Restrict what queries on `db`, including remote Quack clients, can reach or change.
+
+    File access (local disk, S3, other URLs) is limited to `allowed_prefix`, and
+    configuration is frozen so clients can't undo this or swap the Quack auth callbacks.
+    The temp directory stays usable for spilling. Extensions must already be loaded and a
+    secret already created: afterwards neither can be installed or initialized from disk,
+    and without an initialized secret manager every Quack request fails with HTTP 500.
+
+    `allowed_prefix` is a string-prefix check, so `..` segments in a URL can pass it;
+    the task role's S3 policy is the real boundary.
+    """
+    quoted_prefix = allowed_prefix.replace("'", "''")
+    db.execute(f"SET allowed_directories = ['{quoted_prefix}']")
+    db.execute("SET enable_external_access = false")
+    db.execute("SET lock_configuration = true")
 
 
 class Catalog:
@@ -127,8 +165,13 @@ def main() -> None:
     with duckdb.connect(
         config={"extension_directory": EXTENSION_DIRECTORY, "temp_directory": TEMP_DIRECTORY}
     ) as db:
-        db.execute("LOAD quack; LOAD httpfs; LOAD aws;")
+        # load every extension up front: lock_down blocks loading them from disk later
+        db.execute("LOAD quack; LOAD httpfs; LOAD aws; LOAD delta;")
         create_s3_secret(db)
+        pin_quack_callbacks(db)
+        # after the secret and callbacks; before the first refresh, so a lockdown that
+        # blocks the catalog fails at startup
+        lock_down(db, data_prefix(springboard))
 
         catalog = Catalog(db, uri)
         catalog.refresh()
